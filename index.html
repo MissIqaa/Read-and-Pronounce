@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Pronunciation Drive</title>
+    <style>
+        :root {
+            --primary-blue: #4a90e2;
+            --success-green: #2ecc71;
+            --error-red: #e74c3c;
+            --road-grey: #333;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #87CEEB;
+        }
+
+        /* Game Container */
+        #game-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        /* Background Cityscape */
+        .city-bg {
+            position: absolute;
+            bottom: 20%;
+            width: 200%;
+            height: 300px;
+            background: linear-gradient(transparent, #555);
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            padding-left: 20px;
+            transition: transform 1.5s cubic-bezier(0.45, 0, 0.55, 1);
+            z-index: 1;
+        }
+
+        .building {
+            width: 60px;
+            background: #2c3e50;
+            border: 2px solid #1a252f;
+            border-bottom: none;
+            position: relative;
+        }
+        .building::after {
+            content: '';
+            position: absolute;
+            top: 10px; left: 10px; right: 10px; bottom: 0;
+            background-image: repeating-linear-gradient(white 0, white 10px, transparent 10px, transparent 20px);
+            opacity: 0.3;
+        }
+
+        /* Road Area */
+        .road {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 25%;
+            background: var(--road-grey);
+            border-top: 5px solid white;
+            z-index: 2;
+        }
+
+        .lane-line {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            height: 4px;
+            background: repeating-linear-gradient(90deg, white 0, white 40px, transparent 40px, transparent 80px);
+        }
+
+        /* The Car */
+        #car {
+            position: absolute;
+            bottom: 15%;
+            left: 50px;
+            font-size: 60px;
+            z-index: 10;
+            transition: left 1s ease, transform 0.3s;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+        }
+
+        .crash { animation: shake 0.5s linear; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-15px) rotate(-5deg); }
+            75% { transform: translateX(15px) rotate(5deg); }
+        }
+
+        /* Obstacle */
+        #obstacle {
+            position: absolute;
+            bottom: 15%;
+            left: 70%;
+            font-size: 50px;
+            z-index: 9;
+            transition: opacity 0.5s;
+        }
+
+        /* UI Elements */
+        #ui-overlay {
+            position: relative;
+            z-index: 100;
+            width: 90%;
+            max-width: 500px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            margin-bottom: 15px;
+        }
+
+        .sentence-box {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            border: 4px solid var(--primary-blue);
+        }
+
+        #mic-btn {
+            background: var(--primary-blue);
+            border: none;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        #mic-btn.active {
+            background: var(--error-red);
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+            100% { transform: scale(1); }
+        }
+
+        #feedback {
+            margin-top: 15px;
+            font-weight: 900;
+            font-size: 1.5rem;
+            height: 30px;
+            text-shadow: 1px 1px 2px white;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--success-green);
+            transition: width 0.5s;
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+
+        .btn-start {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background: var(--success-green);
+            border: none;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="start-modal" class="modal">
+    <h1>🚕 City Pronunciation</h1>
+    <p>Read the sentences to drive through the city!</p>
+    <button class="btn-start" onclick="startGame()">START DRIVING</button>
+</div>
+
+<div id="end-modal" class="modal" style="display:none;">
+    <h1>🏆 Game Complete!</h1>
+    <p>You are a master of city descriptions!</p>
+    <h2 id="final-score">Score: 0</h2>
+    <button class="btn-start" onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+<div id="game-stage">
+    <div class="city-bg" id="city-bg">
+        </div>
+
+    <div id="ui-overlay">
+        <div class="stats-bar">
+            <span id="lvl-indicator">Level: 1 / 10</span>
+            <span id="score-display">Score: 0</span>
+        </div>
+        
+        <div class="sentence-box" id="sentence-text">
+            The park is big and green.
+        </div>
+
+        <button id="mic-btn">🎤</button>
+        <div id="feedback"></div>
+
+        <div class="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="road">
+        <div class="lane-line"></div>
+        <div id="car">🚗</div>
+        <div id="obstacle">🚧</div>
+    </div>
+</div>
+
+<audio id="snd-success" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YREAAAAAAAAAAAAAAAAAAAAAAAAA"></audio>
+
+<script>
+    const sentences = [
+        "The park is big and green",
+        "The library is quiet and clean",
+        "The market is busy and noisy",
+        "The shopping mall is huge and bright",
+        "The museum is old and interesting",
+        "The hospital is big and modern",
+        "The cinema is dark and comfortable",
+        "The playground is fun and colourful",
+        "The train station is busy and loud",
+        "The city park is peaceful and beautiful"
+    ];
+
+    let currentLevel = 0;
+    let score = 0;
+    const totalLevels = sentences.length;
+
+    const car = document.getElementById('car');
+    const obstacle = document.getElementById('obstacle');
+    const cityBg = document.getElementById('city-bg');
+    const sentenceText = document.getElementById('sentence-text');
+    const feedback = document.getElementById('feedback');
+    const scoreDisplay = document.getElementById('score-display');
+    const lvlIndicator = document.getElementById('lvl-indicator');
+    const progressFill = document.getElementById('progress-fill');
+    const micBtn = document.getElementById('mic-btn');
+
+    // Initialize Buildings
+    function initCity() {
+        for(let i=0; i<30; i++) {
+            const b = document.createElement('div');
+            b.className = 'building';
+            b.style.height = (Math.random() * 150 + 100) + 'px';
+            cityBg.appendChild(b);
+        }
+    }
+
+    // Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        micBtn.classList.add('active');
+        feedback.innerText = "Listening...";
+        feedback.style.color = "black";
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase().trim();
+        const target = sentences[currentLevel].toLowerCase().replace(/[.,!]/g, "");
+        
+        // Remove punctuation from transcript for better matching
+        const cleanTranscript = transcript.replace(/[.,!]/g, "");
+
+        if (cleanTranscript === target) {
+            handleSuccess();
+        } else {
+            handleFailure();
+        }
+    };
+
+    recognition.onerror = () => {
+        micBtn.classList.remove('active');
+        feedback.innerText = "Try again!";
+    };
+
+    recognition.onend = () => {
+        micBtn.classList.remove('active');
+    };
+
+    function startGame() {
+        document.getElementById('start-modal').style.display = 'none';
+        initCity();
+        updateUI();
+    }
+
+    micBtn.addEventListener('click', () => {
+        recognition.start();
+    });
+
+    function handleSuccess() {
+        score += 10;
+        feedback.innerText = "Correct! +10 points";
+        feedback.style.color = "var(--success-green)";
+        
+        // Success Sound
+        try { document.getElementById('snd-success').play(); } catch(e){}
+
+        // Animation: Car passes obstacle
+        car.style.left = "85%";
+        obstacle.style.opacity = "0";
+
+        setTimeout(() => {
+            currentLevel++;
+            if (currentLevel < totalLevels) {
+                resetCarPosition();
+                updateUI();
+            } else {
+                endGame();
+            }
+        }, 1500);
+    }
+
+    function handleFailure() {
+        feedback.innerText = "Try again";
+        feedback.style.color = "var(--error-red)";
+        car.classList.add('crash');
+        setTimeout(() => car.classList.remove('crash'), 500);
+    }
+
+    function resetCarPosition() {
+        car.style.left = "50px";
+        obstacle.style.opacity = "1";
+        // Scroll the city background to simulate driving to a new area
+        cityBg.style.transform = `translateX(-${currentLevel * 10}%)`;
+    }
+
+    function updateUI() {
+        sentenceText.innerText = sentences[currentLevel] + ".";
+        scoreDisplay.innerText = `Score: ${score}`;
+        lvlIndicator.innerText = `Level: ${currentLevel + 1} / ${totalLevels}`;
+        progressFill.style.width = `${((currentLevel) / totalLevels) * 100}%`;
+        feedback.innerText = "";
+    }
+
+    function endGame() {
+        document.getElementById('end-modal').style.display = 'flex';
+        document.getElementById('final-score').innerText = `Final Score: ${score}`;
+    }
+</script>
+
+</body>
+</html>
